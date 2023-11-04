@@ -1,3 +1,5 @@
+#if 0
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -31,3 +33,5 @@ vint8m4_t aes_shiftrows(vint8m4_t vec) {
     vec = vslidedown_vx_i8m4_m(msk, vec, vec, 4, 16);
     return vmerge_vvm_i8m4(vmsk4, vec, tmp, 16);
 }
+
+#endif

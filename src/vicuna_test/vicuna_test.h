@@ -9,7 +9,6 @@
 #define SRC_VICUNA_TEST_VICUNA_TEST_H_
 
 void vicuna_test();
-void vicuna_test_pasa();
-void vicuna_opt_test();
+void vicuna_test_custom_load_bigendian();
 
 #endif /* SRC_VICUNA_TEST_VICUNA_TEST_H_ */

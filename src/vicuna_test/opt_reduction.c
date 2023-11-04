@@ -1,3 +1,5 @@
+#if 0
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -17,3 +19,5 @@ int8_t sum_reduce(vint8m1_t vec, size_t vl)
     sum = vredsum_vs_i8m1_i8m1(sum, vec, sum, vl);
     return vmv_x_s_i8m1_i8(sum);
 }
+
+#endif

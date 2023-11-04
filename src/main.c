@@ -225,8 +225,8 @@ int main()
 {
 	dbg_printf(DEBUG_LEVEL_0, "Code started...\r\n");
 
-	vicuna_test();
-	vicuna_test_pasa();
+	//vicuna_test();
+	vicuna_test_custom_load_bigendian();
 
 	/*initFunctionNames();
 	initFunctions();

@@ -1,3 +1,5 @@
+#if 0
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -85,3 +87,5 @@ void vicuna_opt_test()
     }
     dbg_printf(DEBUG_LEVEL_0, "Vicuna_opt_tests completed...\r\n");
 }
+
+#endif
