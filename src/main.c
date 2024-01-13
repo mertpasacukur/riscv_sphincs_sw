@@ -221,12 +221,36 @@ extern MY_STATIC void chain_lengths(unsigned int *lengths, const unsigned char *
 
 #endif
 
+static void sha256test() // This test can be used to understand whether the custom instructions work as expected.
+{
+	const uint8_t input[3] = "abc";
+	const uint8_t expected_output[32] = { // expected sha256 output of input "abc"
+		    0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
+		    0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
+		    0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
+		    0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad
+	};
+	uint8_t actual_output[32];
+
+	sha256(actual_output, input, sizeof(input));
+
+	if (memcmp(actual_output, expected_output, 32) == 0)
+		dbg_printf(DEBUG_LEVEL_0, "SUCCESS: SHA256 Test OK.\r\n");
+	else
+		dbg_printf(DEBUG_LEVEL_0, "ERROR: SHA256 Test failed!\r\n");
+}
+
 int main()
 {
 	dbg_printf(DEBUG_LEVEL_0, "Code started...\r\n");
 
-	//vicuna_test();
+	//sha256test();
+
+	//vicuna_test_slide();
+
 	vicuna_test_custom_load_bigendian();
+
+	vicuna_test_custom_rot();
 
 	/*initFunctionNames();
 	initFunctions();

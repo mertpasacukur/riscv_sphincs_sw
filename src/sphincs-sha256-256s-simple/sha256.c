@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "sha256.h"
 #include "../my_flags.h"
+#include <riscv_vector.h>
 
 MY_STATIC uint32_t load_bigendian_32(const uint8_t *x) {
     return (uint32_t)(x[3]) | (((uint32_t)(x[2])) << 8) |
@@ -62,53 +63,74 @@ MY_STATIC void store_bigendian_64(uint8_t *x, uint64_t u) {
 #define sigma0_32(x) (ROTR_32(x, 7) ^ ROTR_32(x,18) ^ SHR(x, 3))
 #define sigma1_32(x) (ROTR_32(x,17) ^ ROTR_32(x,19) ^ SHR(x,10))
 
+/******************************************/
+// Added for custom instruction
+#define VECTOR_ELEMENT_WIDTH_BYTES		4
+
+uint32_t w[16];
+uint32_t* wp = w;
+uint32_t letters[8];	// a,b,c,d,e,f,g,h
+
+typedef enum
+{
+	a = 0,
+	b = 1,
+	c = 2,
+	d = 3,
+	e = 4,
+	f = 5,
+	g = 6,
+	h = 7
+} ELetters;
+/******************************************/
+
+//	w[i] = sigma1_32(w[i-2]) + w[i-7] + sigma0_32(w[i-15]) + w[i-16]
 #define M_32(w0, w14, w9, w1) w0 = sigma1_32(w14) + (w9) + sigma0_32(w1) + (w0);
 
-#define EXPAND_32           \
-    M_32(w0, w14, w9, w1)   \
-    M_32(w1, w15, w10, w2)  \
-    M_32(w2, w0, w11, w3)   \
-    M_32(w3, w1, w12, w4)   \
-    M_32(w4, w2, w13, w5)   \
-    M_32(w5, w3, w14, w6)   \
-    M_32(w6, w4, w15, w7)   \
-    M_32(w7, w5, w0, w8)    \
-    M_32(w8, w6, w1, w9)    \
-    M_32(w9, w7, w2, w10)   \
-    M_32(w10, w8, w3, w11)  \
-    M_32(w11, w9, w4, w12)  \
-    M_32(w12, w10, w5, w13) \
-    M_32(w13, w11, w6, w14) \
-    M_32(w14, w12, w7, w15) \
-    M_32(w15, w13, w8, w0)
+#define EXPAND_32           		\
+    M_32(w[0], w[14], w[9], w[1])   \
+    M_32(w[1], w[15], w[10], w[2])  \
+    M_32(w[2], w[0], w[11], w[3])   \
+    M_32(w[3], w[1], w[12], w[4])   \
+    M_32(w[4], w[2], w[13], w[5])   \
+    M_32(w[5], w[3], w[14], w[6])   \
+    M_32(w[6], w[4], w[15], w[7])   \
+    M_32(w[7], w[5], w[0], w[8])    \
+    M_32(w[8], w[6], w[1], w[9])    \
+    M_32(w[9], w[7], w[2], w[10])   \
+    M_32(w[10], w[8], w[3], w[11])  \
+    M_32(w[11], w[9], w[4], w[12])  \
+    M_32(w[12], w[10], w[5], w[13]) \
+    M_32(w[13], w[11], w[6], w[14]) \
+    M_32(w[14], w[12], w[7], w[15]) \
+    M_32(w[15], w[13], w[8], w[0])
 
-#define F_32(w, k)                                   \
-    T1 = h + Sigma1_32(e) + Ch(e, f, g) + (k) + (w); \
-    T2 = Sigma0_32(a) + Maj(a, b, c);                \
-    h = g;                                           \
-    g = f;                                           \
-    f = e;                                           \
-    e = d + T1;                                      \
-    d = c;                                           \
-    c = b;                                           \
-    b = a;                                           \
-    a = T1 + T2;
+// Updated for custom instruction a,b,c,d,e,f,g,h --> letters[a,b,c,d,e,f,g,h]
+#define F_32(w, k)                                   												\
+    T1 = letters[h] + Sigma1_32(letters[e]) + Ch(letters[e], letters[f], letters[g]) + (k) + (w); 	\
+    T2 = Sigma0_32(letters[a]) + Maj(letters[a], letters[b], letters[c]);                			\
+    letters[h] = letters[g];                                           								\
+    letters[g] = letters[f];                                           								\
+    letters[f] = letters[e];                                           								\
+    letters[e] = letters[d] + T1;                                      								\
+    letters[d] = letters[c];                                           								\
+    letters[c] = letters[b];                                           								\
+    letters[b] = letters[a];                                           								\
+    letters[a] = T1 + T2;
 
 MY_STATIC size_t crypto_hashblocks_sha256(uint8_t *statebytes,
-                                       const uint8_t *in, size_t inlen) {
+                                       const uint8_t *in, size_t inlen)
+{
+	uint32_t AVL;	// Application vector length, desired number of elements we want to process.
+	uint32_t VL;	// VL is the smaller of desired vector length, AVL and vector length limit set by hardware, VLMAX.
+	vint32m1_t vectorReg; // Vector register that will be used during the vector operations
+
     uint32_t state[8];
-    uint32_t a;
-    uint32_t b;
-    uint32_t c;
-    uint32_t d;
-    uint32_t e;
-    uint32_t f;
-    uint32_t g;
-    uint32_t h;
     uint32_t T1;
     uint32_t T2;
 
-    a = load_bigendian_32(statebytes + 0);
+    /**********************************************************/
+    /*a = load_bigendian_32(statebytes + 0);
     state[0] = a;
     b = load_bigendian_32(statebytes + 4);
     state[1] = b;
@@ -123,11 +145,44 @@ MY_STATIC size_t crypto_hashblocks_sha256(uint8_t *statebytes,
     g = load_bigendian_32(statebytes + 24);
     state[6] = g;
     h = load_bigendian_32(statebytes + 28);
-    state[7] = h;
+    state[7] = h;*/
 
-    // TODO PASA: Asagidaki blok toplam sureyi yaklasik 4'te birine indiriyor
+    /*letters[a] = load_bigendian_32(statebytes + 0);
+    state[0] = letters[a];
+    letters[b] = load_bigendian_32(statebytes + 4);
+    state[1] = letters[b];
+    letters[c] = load_bigendian_32(statebytes + 8);
+    state[2] = letters[c];
+    letters[d] = load_bigendian_32(statebytes + 12);
+    state[3] = letters[d];
+    letters[e] = load_bigendian_32(statebytes + 16);
+    state[4] = letters[e];
+    letters[f] = load_bigendian_32(statebytes + 20);
+    state[5] = letters[f];
+    letters[g] = load_bigendian_32(statebytes + 24);
+    state[6] = letters[g];
+    letters[h] = load_bigendian_32(statebytes + 28);
+    state[7] = letters[h];*/
+
+    AVL = sizeof(state) / VECTOR_ELEMENT_WIDTH_BYTES;
+	VL  = __riscv_vsetvl_e32m1(AVL);
+	vectorReg = __builtin_riscv_vlebe32_v((uint32_t*)statebytes, VL);
+	__riscv_vse32_v_i32m1((int*)letters, vectorReg, VL);
+	__riscv_vse32_v_i32m1((int*)state, vectorReg, VL);
+
+    /*state[0] = letters[a];
+    state[1] = letters[b];
+    state[2] = letters[c];
+    state[3] = letters[d];
+    state[4] = letters[e];
+    state[5] = letters[f];
+    state[6] = letters[g];
+    state[7] = letters[h];*/
+	/**********************************************************/
+
     while (inlen >= 64) {
-        uint32_t w0  = load_bigendian_32(in + 0);
+        /**********************************************/
+    	/*uint32_t w0  = load_bigendian_32(in + 0);
         uint32_t w1  = load_bigendian_32(in + 4);
         uint32_t w2  = load_bigendian_32(in + 8);
         uint32_t w3  = load_bigendian_32(in + 12);
@@ -142,99 +197,105 @@ MY_STATIC size_t crypto_hashblocks_sha256(uint8_t *statebytes,
         uint32_t w12 = load_bigendian_32(in + 48);
         uint32_t w13 = load_bigendian_32(in + 52);
         uint32_t w14 = load_bigendian_32(in + 56);
-        uint32_t w15 = load_bigendian_32(in + 60);
+        uint32_t w15 = load_bigendian_32(in + 60);*/
 
-        F_32(w0, 0x428a2f98)
-        F_32(w1, 0x71374491)
-        F_32(w2, 0xb5c0fbcf)
-        F_32(w3, 0xe9b5dba5)
-        F_32(w4, 0x3956c25b)
-        F_32(w5, 0x59f111f1)
-        F_32(w6, 0x923f82a4)
-        F_32(w7, 0xab1c5ed5)
-        F_32(w8, 0xd807aa98)
-        F_32(w9, 0x12835b01)
-        F_32(w10, 0x243185be)
-        F_32(w11, 0x550c7dc3)
-        F_32(w12, 0x72be5d74)
-        F_32(w13, 0x80deb1fe)
-        F_32(w14, 0x9bdc06a7)
-        F_32(w15, 0xc19bf174)
+    	AVL = sizeof(w) / VECTOR_ELEMENT_WIDTH_BYTES;
+		VL  = __riscv_vsetvl_e32m1(AVL);
+		vectorReg = __builtin_riscv_vlebe32_v((uint32_t*)in, VL);
+		__riscv_vse32_v_i32m1((int*)w, vectorReg, VL);
+    	/*********************************************/
 
-        EXPAND_32
-
-        F_32(w0, 0xe49b69c1)
-        F_32(w1, 0xefbe4786)
-        F_32(w2, 0x0fc19dc6)
-        F_32(w3, 0x240ca1cc)
-        F_32(w4, 0x2de92c6f)
-        F_32(w5, 0x4a7484aa)
-        F_32(w6, 0x5cb0a9dc)
-        F_32(w7, 0x76f988da)
-        F_32(w8, 0x983e5152)
-        F_32(w9, 0xa831c66d)
-        F_32(w10, 0xb00327c8)
-        F_32(w11, 0xbf597fc7)
-        F_32(w12, 0xc6e00bf3)
-        F_32(w13, 0xd5a79147)
-        F_32(w14, 0x06ca6351)
-        F_32(w15, 0x14292967)
+        F_32(w[0], 0x428a2f98)
+        F_32(w[1], 0x71374491)
+        F_32(w[2], 0xb5c0fbcf)
+        F_32(w[3], 0xe9b5dba5)
+        F_32(w[4], 0x3956c25b)
+        F_32(w[5], 0x59f111f1)
+        F_32(w[6], 0x923f82a4)
+        F_32(w[7], 0xab1c5ed5)
+        F_32(w[8], 0xd807aa98)
+        F_32(w[9], 0x12835b01)
+        F_32(w[10], 0x243185be)
+        F_32(w[11], 0x550c7dc3)
+        F_32(w[12], 0x72be5d74)
+        F_32(w[13], 0x80deb1fe)
+        F_32(w[14], 0x9bdc06a7)
+        F_32(w[15], 0xc19bf174)
 
         EXPAND_32
 
-        F_32(w0, 0x27b70a85)
-        F_32(w1, 0x2e1b2138)
-        F_32(w2, 0x4d2c6dfc)
-        F_32(w3, 0x53380d13)
-        F_32(w4, 0x650a7354)
-        F_32(w5, 0x766a0abb)
-        F_32(w6, 0x81c2c92e)
-        F_32(w7, 0x92722c85)
-        F_32(w8, 0xa2bfe8a1)
-        F_32(w9, 0xa81a664b)
-        F_32(w10, 0xc24b8b70)
-        F_32(w11, 0xc76c51a3)
-        F_32(w12, 0xd192e819)
-        F_32(w13, 0xd6990624)
-        F_32(w14, 0xf40e3585)
-        F_32(w15, 0x106aa070)
+        F_32(w[0], 0xe49b69c1)
+        F_32(w[1], 0xefbe4786)
+        F_32(w[2], 0x0fc19dc6)
+        F_32(w[3], 0x240ca1cc)
+        F_32(w[4], 0x2de92c6f)
+        F_32(w[5], 0x4a7484aa)
+        F_32(w[6], 0x5cb0a9dc)
+        F_32(w[7], 0x76f988da)
+        F_32(w[8], 0x983e5152)
+        F_32(w[9], 0xa831c66d)
+        F_32(w[10], 0xb00327c8)
+        F_32(w[11], 0xbf597fc7)
+        F_32(w[12], 0xc6e00bf3)
+        F_32(w[13], 0xd5a79147)
+        F_32(w[14], 0x06ca6351)
+        F_32(w[15], 0x14292967)
 
         EXPAND_32
 
-        F_32(w0, 0x19a4c116)
-        F_32(w1, 0x1e376c08)
-        F_32(w2, 0x2748774c)
-        F_32(w3, 0x34b0bcb5)
-        F_32(w4, 0x391c0cb3)
-        F_32(w5, 0x4ed8aa4a)
-        F_32(w6, 0x5b9cca4f)
-        F_32(w7, 0x682e6ff3)
-        F_32(w8, 0x748f82ee)
-        F_32(w9, 0x78a5636f)
-        F_32(w10, 0x84c87814)
-        F_32(w11, 0x8cc70208)
-        F_32(w12, 0x90befffa)
-        F_32(w13, 0xa4506ceb)
-        F_32(w14, 0xbef9a3f7)
-        F_32(w15, 0xc67178f2)
+        F_32(w[0], 0x27b70a85)
+        F_32(w[1], 0x2e1b2138)
+        F_32(w[2], 0x4d2c6dfc)
+        F_32(w[3], 0x53380d13)
+        F_32(w[4], 0x650a7354)
+        F_32(w[5], 0x766a0abb)
+        F_32(w[6], 0x81c2c92e)
+        F_32(w[7], 0x92722c85)
+        F_32(w[8], 0xa2bfe8a1)
+        F_32(w[9], 0xa81a664b)
+        F_32(w[10], 0xc24b8b70)
+        F_32(w[11], 0xc76c51a3)
+        F_32(w[12], 0xd192e819)
+        F_32(w[13], 0xd6990624)
+        F_32(w[14], 0xf40e3585)
+        F_32(w[15], 0x106aa070)
 
-        a += state[0];
-        b += state[1];
-        c += state[2];
-        d += state[3];
-        e += state[4];
-        f += state[5];
-        g += state[6];
-        h += state[7];
+        EXPAND_32
 
-        state[0] = a;
-        state[1] = b;
-        state[2] = c;
-        state[3] = d;
-        state[4] = e;
-        state[5] = f;
-        state[6] = g;
-        state[7] = h;
+        F_32(w[0], 0x19a4c116)
+        F_32(w[1], 0x1e376c08)
+        F_32(w[2], 0x2748774c)
+        F_32(w[3], 0x34b0bcb5)
+        F_32(w[4], 0x391c0cb3)
+        F_32(w[5], 0x4ed8aa4a)
+        F_32(w[6], 0x5b9cca4f)
+        F_32(w[7], 0x682e6ff3)
+        F_32(w[8], 0x748f82ee)
+        F_32(w[9], 0x78a5636f)
+        F_32(w[10], 0x84c87814)
+        F_32(w[11], 0x8cc70208)
+        F_32(w[12], 0x90befffa)
+        F_32(w[13], 0xa4506ceb)
+        F_32(w[14], 0xbef9a3f7)
+        F_32(w[15], 0xc67178f2)
+
+        letters[a] += state[0];
+        letters[b] += state[1];
+        letters[c] += state[2];
+        letters[d] += state[3];
+        letters[e] += state[4];
+        letters[f] += state[5];
+        letters[g] += state[6];
+        letters[h] += state[7];
+
+        state[0] = letters[a];
+        state[1] = letters[b];
+        state[2] = letters[c];
+        state[3] = letters[d];
+        state[4] = letters[e];
+        state[5] = letters[f];
+        state[6] = letters[g];
+        state[7] = letters[h];
 
         in += 64;
         inlen -= 64;

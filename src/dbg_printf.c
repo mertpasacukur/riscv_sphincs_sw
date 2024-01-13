@@ -31,6 +31,7 @@ void setDebugLevel(unsigned int uiDebugLevel)
 
 void dbg_printf(unsigned int uiDebugLevel, const char *format, ...)
 {
+	#if 1
 	#ifdef SPIKE_ENABLED
 
 	va_list args;
@@ -152,6 +153,7 @@ void dbg_printf(unsigned int uiDebugLevel, const char *format, ...)
 		va_end(args);
 	}
 
+	#endif
 	#endif
 }
 

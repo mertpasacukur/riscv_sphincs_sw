@@ -58,67 +58,60 @@ int benchmark()
     resetTimeStamp();
     getTimeStamp();
 
+    DBG_LINE();
+
     crypto_sign_keypair(pk, sk);
     getTimeStamp();
+    DBG_LINE();
 
     wots_gen_pk(wots_pk, sk, pk, (uint32_t *) addr);
     getTimeStamp();
+    DBG_LINE();
 
     crypto_sign(sm, &smlen, m, SPX_MLEN, sk);
     getTimeStamp();
+    DBG_LINE();
 
     fors_sign(fors_sig, fors_pk, fors_m, sk, pk, (uint32_t *) addr);
     getTimeStamp();
+    DBG_LINE();
 
     wots_sign(wots_sig, wots_m, sk, pk, (uint32_t *) addr);
     getTimeStamp();
+    DBG_LINE();
 
     wots_gen_pk(wots_pk, sk, pk, (uint32_t *) addr);
     getTimeStamp();
+    DBG_LINE();
 
     iStatus = crypto_sign_open(mout, &mlen, sm, smlen, pk);
     getTimeStamp();
+    DBG_LINE();
 
     uiTotalTime_ms = getTimeDiff_ms(7, 0);
 
     uiTimeDiff_ms = getTimeDiff_ms(1, 0);
-    dbg_printf(DEBUG_LEVEL_0, "Generating keypair... %-10d ms  Percentage: %", uiTimeDiff_ms);
-    //printFloat(((float)uiTimeDiff_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "Generating keypair... %-10d ms  Percentage: %\r\n", uiTimeDiff_ms);
 
     uiTimeDiff_ms = getTimeDiff_ms(2, 1);
-    dbg_printf(DEBUG_LEVEL_0, "  - WOTS pk gen...    %-10d ms  Percentage: %", uiTimeDiff_ms);
-    //printFloat(((float)uiTimeDiff_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "  - WOTS pk gen...    %-10d ms  Percentage: %\r\n", uiTimeDiff_ms);
 
     uiTimeDiff_ms = getTimeDiff_ms(3, 2);
-    dbg_printf(DEBUG_LEVEL_0, "Signing...            %-10d ms  Percentage: %", uiTimeDiff_ms);
-    //printFloat(((float)uiTimeDiff_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "Signing...            %-10d ms  Percentage: %\r\n", uiTimeDiff_ms);
 
     uiTimeDiff_ms = getTimeDiff_ms(4, 3);
-    dbg_printf(DEBUG_LEVEL_0, "  - FORS signing...   %-10d ms  Percentage: %", uiTimeDiff_ms);
-    //printFloat(((float)uiTimeDiff_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "  - FORS signing...   %-10d ms  Percentage: %\r\n", uiTimeDiff_ms);
 
     uiTimeDiff_ms = getTimeDiff_ms(5, 4);
-    dbg_printf(DEBUG_LEVEL_0, "  - WOTS signing...   %-10d ms  Percentage: %", uiTimeDiff_ms);
-    //printFloat(((float)uiTimeDiff_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "  - WOTS signing...   %-10d ms  Percentage: %\r\n", uiTimeDiff_ms);
 
     uiTimeDiff_ms = getTimeDiff_ms(6, 5);
-    dbg_printf(DEBUG_LEVEL_0, "  - WOTS pk gen...    %-10d ms  Percentage: %", uiTimeDiff_ms);
-    //printFloat(((float)uiTimeDiff_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "  - WOTS pk gen...    %-10d ms  Percentage: %\r\n", uiTimeDiff_ms);
 
     uiTimeDiff_ms = getTimeDiff_ms(7, 6);
-    dbg_printf(DEBUG_LEVEL_0, "Verifying...          %-10d ms  Percentage: %", uiTimeDiff_ms);
-    //printFloat(((float)uiTimeDiff_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "Verifying...          %-10d ms  Percentage: %\r\n", uiTimeDiff_ms);
 
-    dbg_printf(DEBUG_LEVEL_0, "Algorithm Total Time  %-10d ms  Percentage: %", uiTotalTime_ms);
-    //printFloat(((float)uiTotalTime_ms / uiTotalTime_ms) * 100.0);
-    dbg_printf(DEBUG_LEVEL_0, "\r\n");
+    dbg_printf(DEBUG_LEVEL_0, "Algorithm Total Time  %-10d ms  Percentage: %\r\n", uiTotalTime_ms);
 
     if (iStatus != 0)
     	dbg_printf(DEBUG_LEVEL_0, "ERROR: Verifying Operation Failed!\r\n");

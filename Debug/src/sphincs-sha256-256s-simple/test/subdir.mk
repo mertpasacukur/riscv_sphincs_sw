@@ -9,12 +9,6 @@ C_SRCS += \
 ../src/sphincs-sha256-256s-simple/test/spx.c \
 ../src/sphincs-sha256-256s-simple/test/wots.c 
 
-O_SRCS += \
-../src/sphincs-sha256-256s-simple/test/benchmark.o \
-../src/sphincs-sha256-256s-simple/test/fors.o \
-../src/sphincs-sha256-256s-simple/test/spx.o \
-../src/sphincs-sha256-256s-simple/test/wots.o 
-
 OBJS += \
 ./src/sphincs-sha256-256s-simple/test/benchmark.o \
 ./src/sphincs-sha256-256s-simple/test/fors.o \

@@ -1,3 +1,4 @@
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -5,8 +6,7 @@
 #include <riscv_vector.h>
 #include "../dbg_printf.h"
 
-//static int8_t array[16] __attribute__ ((aligned (4))) = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-static int8_t array[512] __attribute__ ((aligned (4)));
+/*static int8_t array[512] __attribute__ ((aligned (4)));
 
 void vicuna_test()
 {
@@ -34,20 +34,19 @@ void vicuna_test()
     }
 
     dbg_printf(DEBUG_LEVEL_0, "vicuna_test completed...\r\n");
-}
-
-static int32_t S_iArrMyArray[8] = {0x10203040, 0x11213141, 0x12223242, 0x13233343, 0x14243444, 0x15253545, 0x16263646, 0x17273747};
+}*/
 
 void vicuna_test_custom_load_bigendian()
 {
+	int32_t iArrMyArray[8] = {0x10203040, 0x11213141, 0x12223242, 0x13233343, 0x14243444, 0x15253545, 0x16263646, 0x17273747};
 	size_t vl;
-	int32_t target[sizeof(S_iArrMyArray)], *src = S_iArrMyArray, *dst = target;
+	int32_t target[sizeof(iArrMyArray)], *src = iArrMyArray, *dst = target;
 	vint32m1_t vec;
 	int n;
 
 	dbg_printf(DEBUG_LEVEL_0, "vicuna_test_custom_load_bigendian started...\r\n");
 
-	for (n = sizeof(S_iArrMyArray); n > 0; n -= vl, src += vl/4, dst += vl/4)
+	for (n = sizeof(iArrMyArray)/4; n > 0; n -= vl, src += vl/4, dst += vl/4)
 	{
 		vl  = __riscv_vsetvl_e32m1(n);
 	    vec = __builtin_riscv_vlebe32_v(src, vl); // --> Intrinsic for Custom Big Endian Instruction
@@ -56,10 +55,90 @@ void vicuna_test_custom_load_bigendian()
 		dbg_printf(DEBUG_LEVEL_0, "vl: %d\r\n", vl);
 	}
 
-	for (int i = 0; i < sizeof(S_iArrMyArray)/4; i++)
+	for (int i = 0; i < sizeof(iArrMyArray)/4; i++)
 	{
-		dbg_printf(DEBUG_LEVEL_0, "CustomLoadBigEndian:: List[%d]: 0x%08x --> 0x%08x\r\n", i, S_iArrMyArray[i], target[i]);
+		dbg_printf(DEBUG_LEVEL_0, "CustomLoadBigEndian:: List[%d]: 0x%08x --> 0x%08x\r\n", i, iArrMyArray[i], target[i]);
 	}
 
 	dbg_printf(DEBUG_LEVEL_0, "vicuna_test_custom_load_bigendian completed...\r\n");
+}
+
+void vicuna_test_slide()
+{
+	int iArrSrcArray[16] = {0x1111, 0x2222,0x3333,0x4444,0x5555,0x6666,0x7777,0x8888,0x9999,0xAAAA,0xBBBB,0xCCCC,0xDDDD,0xEEEE,0xFFFF,0x1234};
+	int iArrDstArray[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+	vint32m1_t srcReg;
+	vint32m1_t destReg;
+
+	size_t offset = 0;
+	size_t vl  = __riscv_vsetvl_e32m1(16);
+
+	for (offset = 0; offset < 16; offset++)
+	{
+		dbg_printf(DEBUG_LEVEL_0, "vl: %d, offset: %d\r\n", vl, offset);
+
+		srcReg = __riscv_vle32_v_i32m1(iArrSrcArray, vl);
+		destReg = __riscv_vle32_v_i32m1(iArrDstArray, vl);
+
+		// Perform the slide-up operation
+		destReg = __riscv_vslideup_vx_i32m1(destReg, srcReg, offset, vl);
+
+		__riscv_vse32_v_i32m1(iArrDstArray, destReg, vl);
+
+		for (int i = 0; i < sizeof(iArrSrcArray)/4; i++)
+		{
+			dbg_printf(DEBUG_LEVEL_0, "SlideUpList[%d]: 0x%08x --> 0x%08x\r\n", i, iArrSrcArray[i], iArrDstArray[i]);
+		}
+	}
+
+	dbg_printf(DEBUG_LEVEL_0, "\r\n\r\n\r\n");
+}
+
+void vicuna_test_custom_rot()
+{
+	int iArrSrcArray[16] = {0x1111, 0x2222,0x3333,0x4444,0x5555,0x6666,0x7777,0x8888,0x9999,0xAAAA,0xBBBB,0xCCCC,0xDDDD,0xEEEE,0xFFFF,0x1234};
+	int iArrDstArray[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+	vint32m1_t srcReg;
+	vint32m1_t destReg;
+
+	size_t offset = 1;
+	size_t vl  = __riscv_vsetvl_e32m1(16);
+
+	for (offset = 0; offset < 16; offset++)
+	{
+		dbg_printf(DEBUG_LEVEL_0, "vl: %d, offset: %d\r\n", vl, offset);
+
+		srcReg = __riscv_vle32_v_i32m1(iArrSrcArray, vl);
+		destReg = __riscv_vle32_v_i32m1(iArrDstArray, vl);
+
+		// Perform the rotup operation
+		destReg = __builtin_riscv_vrotup_vx(destReg, srcReg, offset, vl);
+
+		__riscv_vse32_v_i32m1(iArrDstArray, destReg, vl);
+
+		for (int i = 0; i < sizeof(iArrSrcArray)/4; i++)
+		{
+			dbg_printf(DEBUG_LEVEL_0, "RotUpList[%d]: 0x%08x --> 0x%08x\r\n", i, iArrSrcArray[i], iArrDstArray[i]);
+		}
+	}
+
+	dbg_printf(DEBUG_LEVEL_0, "\r\n\r\n\r\n");
+
+	for (offset = 0; offset < 16; offset++)
+	{
+		dbg_printf(DEBUG_LEVEL_0, "vl: %d, offset: %d\r\n", vl, offset);
+
+		srcReg = __riscv_vle32_v_i32m1(iArrSrcArray, vl);
+		destReg = __riscv_vle32_v_i32m1(iArrDstArray, vl);
+
+		// Perform the rotdown operation
+		destReg = __builtin_riscv_vrotdown_vx(destReg, srcReg, offset, vl);
+
+		__riscv_vse32_v_i32m1(iArrDstArray, destReg, vl);
+
+		for (int i = 0; i < sizeof(iArrSrcArray)/4; i++)
+		{
+			dbg_printf(DEBUG_LEVEL_0, "RotDownList[%d]: 0x%08x --> 0x%08x\r\n", i, iArrSrcArray[i], iArrDstArray[i]);
+		}
+	}
 }

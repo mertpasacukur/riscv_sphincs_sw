@@ -14,12 +14,7 @@ S_UPPER_SRCS += \
 ../src/crt0.S 
 
 O_SRCS += \
-../src/crt0.o \
-../src/dbg_printf.o \
-../src/main.o \
-../src/myTime.o \
-../src/my_uart.o \
-../src/my_utils.o 
+../src/crt0.o 
 
 OBJS += \
 ./src/crt0.o \

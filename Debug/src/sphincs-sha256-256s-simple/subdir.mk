@@ -15,18 +15,6 @@ C_SRCS += \
 ../src/sphincs-sha256-256s-simple/utils.c \
 ../src/sphincs-sha256-256s-simple/wots.c 
 
-O_SRCS += \
-../src/sphincs-sha256-256s-simple/PQCgenKAT_sign.o \
-../src/sphincs-sha256-256s-simple/address.o \
-../src/sphincs-sha256-256s-simple/fors.o \
-../src/sphincs-sha256-256s-simple/hash_sha256.o \
-../src/sphincs-sha256-256s-simple/rng.o \
-../src/sphincs-sha256-256s-simple/sha256.o \
-../src/sphincs-sha256-256s-simple/sign.o \
-../src/sphincs-sha256-256s-simple/thash_sha256_simple.o \
-../src/sphincs-sha256-256s-simple/utils.o \
-../src/sphincs-sha256-256s-simple/wots.o 
-
 OBJS += \
 ./src/sphincs-sha256-256s-simple/PQCgenKAT_sign.o \
 ./src/sphincs-sha256-256s-simple/address.o \

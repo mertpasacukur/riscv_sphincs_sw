@@ -6,9 +6,6 @@
 C_SRCS += \
 ../src/tiny_aes/aes.c 
 
-O_SRCS += \
-../src/tiny_aes/aes.o 
-
 OBJS += \
 ./src/tiny_aes/aes.o 
 

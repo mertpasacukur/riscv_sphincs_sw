@@ -10,5 +10,7 @@
 
 void vicuna_test();
 void vicuna_test_custom_load_bigendian();
+void vicuna_test_slide();
+void vicuna_test_custom_rot();
 
 #endif /* SRC_VICUNA_TEST_VICUNA_TEST_H_ */
